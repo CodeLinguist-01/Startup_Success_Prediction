@@ -7,7 +7,9 @@ import pickle
 import joblib
 
 # Load model and supporting files for prediction
-model = pickle.load(open("model.pkl", "rb"))
+model_path = os.path.join(os.path.dirname(__file__), 'model.pkl')
+with open(model_path, 'rb') as f:
+    model = pickle.load(f)
 scaler = pickle.load(open("scaler.pkl", "rb"))
 input_columns = joblib.load(open("input_columns.pkl", "rb"))
 
