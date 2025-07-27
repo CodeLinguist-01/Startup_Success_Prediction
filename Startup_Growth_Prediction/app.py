@@ -5,6 +5,7 @@ from streamlit_option_menu import option_menu
 import numpy as np
 import pickle
 import joblib
+import os
 
 # Load model and supporting files for prediction
 model_path = os.path.join(os.path.dirname(__file__), 'model.pkl')
