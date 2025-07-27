@@ -121,75 +121,11 @@ if page == "Overview":
                                   values="Total Funding ($M)", title="Treemap of Industry Success")
             st.plotly_chart(fig_tree, use_container_width=True)
 
-# -------------- Profile & Geography Page --------------
-elif page == "Profile & Geography":
-    st.title("🌍 Startup Profile & Geography")
-    df_filtered_geo = df_geo.copy()
-
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        country = st.selectbox("Country", ["All"] + sorted(df_geo["Country"].dropna().unique().tolist()))
-        if country != "All":
-            df_filtered_geo = df_filtered_geo[df_filtered_geo["Country"] == country]
-
-    with col2:
-        industry = st.selectbox("Industry", ["All"] + sorted(df_geo["Industry"].dropna().unique().tolist()))
-        if industry != "All":
-            df_filtered_geo = df_filtered_geo[df_filtered_geo["Industry"] == industry]
-
-    with col3:
-        stage = st.selectbox("Funding Stage", ["All"] + sorted(df_geo["Funding Stage"].dropna().unique().tolist()))
-        if stage != "All":
-            df_filtered_geo = df_filtered_geo[df_filtered_geo["Funding Stage"] == stage]
-
-    with col4:
-        pred_cat = st.selectbox("Predicted Category", ["All", "Low", "Medium", "High"])
-        if pred_cat != "All":
-            df_filtered_geo = df_filtered_geo[df_filtered_geo["Predicted Category"] == pred_cat]
-
-    if df_filtered_geo.empty:
-        st.warning("No data for selected filters.")
-    else:
-        st.subheader("🗺️ Global Startup Spread")
-        if "Country" in df_filtered_geo.columns:
-            fig_map = px.scatter_geo(df_filtered_geo, locations="Country", locationmode='country names',
-                                     size="Total Funding ($M)", color="Country",
-                                     hover_name="Country", title="Startup Spread by Country")
-            st.plotly_chart(fig_map, use_container_width=True)
-
-        st.subheader("🏭 Avg Funding by Industry")
-        if "Industry" in df_filtered_geo.columns:
-            avg_funding = df_filtered_geo.groupby("Industry")["Total Funding ($M)"].mean().reset_index()
-            fig_ind = px.bar(avg_funding, x="Industry", y="Total Funding ($M)", title="Avg Funding by Industry")
-            st.plotly_chart(fig_ind, use_container_width=True)
-
-        st.subheader("📈 Age vs Valuation")
-        if "Startup Age" in df_filtered_geo.columns and "Valuation ($B)" in df_filtered_geo.columns:
-            fig_scatter = px.scatter(df_filtered_geo, x="Startup Age", y="Valuation ($B)",
-                                     color="Predicted Category", hover_data=["Country", "Industry"],
-                                     title="Startup Age vs Valuation")
-            st.plotly_chart(fig_scatter, use_container_width=True)
-
-# -------------- Model Insights Page --------------
-elif page == "Model Insights":
-    st.title("📊 Model Insights & Feature Importance")
-
-    st.subheader("🧠 Feature Importance")
-    fig_feat = px.bar(df_imp.sort_values(by="Importance", ascending=True),
-                      x="Importance", y="Feature", orientation="h",
-                      title="Feature Importance (Low to High)")
-    st.plotly_chart(fig_feat, use_container_width=True)
-
-    st.subheader("📋 Complete Dataset (Offline Predictions)")
-    with st.expander("View Full Dataset"):
-        st.dataframe(df)
-
 # -------------- Predict Success Page --------------
 elif page == "Predict Success":
     st.title("🚀 Startup Growth Success Score Predictor")
     st.markdown("Enter the details of your startup to predict its success potential.")
 
-    # Input fields
     funding = st.number_input("Total Funding ($M)", 0.0, 1000.0, 50.0)
     employees = st.number_input("Number of Employees", 0, 10000, 100)
     revenue = st.number_input("Annual Revenue ($M)", 0.0, 1000.0, 10.0)
@@ -201,28 +137,50 @@ elif page == "Predict Success":
     founded_year = st.number_input("Founded Year", 1980, 2025, 2015)
     customer_base = st.number_input("Customer Base (Millions)", 0.0, 1000.0, 1.0)
 
-    # Calculate Startup Age
-    startup_age = 2025 - founded_year
+    # Dropdowns for one-hot features
+    ohe_country = st.selectbox("Country", sorted({col.split("_")[1] for col in input_columns if col.startswith("Country_")}))
+    ohe_industry = st.selectbox("Industry", sorted({col.split("_")[1] for col in input_columns if col.startswith("Industry_")}))
+    ohe_stage = st.selectbox("Funding Stage", sorted({col.split("_")[1] for col in input_columns if col.startswith("Funding Stage_")}))
 
-    # Predict button
     if st.button("🔍 Predict Success"):
         try:
-            input_data = pd.DataFrame([[
-                funding, employees, revenue, valuation, followers,
-                tech_stack, acquired, ipo, startup_age, customer_base
-            ]], columns=input_columns)
+            startup_age = 2025 - founded_year
 
-            input_scaled = scaler.transform(input_data)
-            prediction = model.predict(input_scaled)[0]
-            prediction_proba = model.predict_proba(input_scaled)[0]
+            input_dict = {col: 0 for col in input_columns}
+
+            input_dict["Total Funding ($M)"] = funding
+            input_dict["Number of Employees"] = employees
+            input_dict["Annual Revenue ($M)"] = revenue
+            input_dict["Valuation ($B)"] = valuation
+            input_dict["Social Media Followers"] = followers
+            input_dict["Tech Stack Count"] = tech_stack
+            input_dict["Acquired?"] = acquired
+            input_dict["IPO?"] = ipo
+            input_dict["Startup Age"] = startup_age
+            input_dict["Customer Base (Millions)"] = customer_base
+
+            if f"Country_{ohe_country}" in input_dict:
+                input_dict[f"Country_{ohe_country}"] = 1
+            if f"Industry_{ohe_industry}" in input_dict:
+                input_dict[f"Industry_{ohe_industry}"] = 1
+            if f"Funding Stage_{ohe_stage}" in input_dict:
+                input_dict[f"Funding Stage_{ohe_stage}"] = 1
+
+            final_input = pd.DataFrame([input_dict])
+
+            scaled_input = scaler.transform(final_input)
+            prediction = model.predict(scaled_input)[0]
+            probas = model.predict_proba(scaled_input)[0]
 
             pred_label = {0: "Low", 1: "Medium", 2: "High"}.get(prediction, "Unknown")
             st.success(f"🧠 **Predicted Success Category: {pred_label}**")
-            st.write("📊 **Prediction Probabilities**")
+
+            st.subheader("📊 Prediction Probabilities")
             st.write({
-                "Low": f"{prediction_proba[0]*100:.2f}%",
-                "Medium": f"{prediction_proba[1]*100:.2f}%",
-                "High": f"{prediction_proba[2]*100:.2f}%"
+                "Low": f"{probas[0]*100:.2f}%",
+                "Medium": f"{probas[1]*100:.2f}%",
+                "High": f"{probas[2]*100:.2f}%"
             })
+
         except Exception as e:
             st.error(f"⚠️ Prediction failed: {e}")
