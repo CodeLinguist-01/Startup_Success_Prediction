@@ -190,9 +190,9 @@ elif page == "Predict Success":
     st.markdown("Enter the details of your startup to predict its success potential.")
 
     # Input fields
-    funding = st.number_input("Total Funding ($M)", 0, 1000, 50)
+    funding = st.number_input("Total Funding ($M)", 0.0, 1000.0, 50.0)
     employees = st.number_input("Number of Employees", 0, 10000, 100)
-    revenue = st.number_input("Annual Revenue ($M)", 0, 1000, 10)
+    revenue = st.number_input("Annual Revenue ($M)", 0.0, 1000.0, 10.0)
     valuation = st.number_input("Valuation ($B)", 0.0, 100.0, 1.0)
     followers = st.number_input("Social Media Followers", 0, 10000000, 50000)
     tech_stack = st.slider("Tech Stack Count", 1, 10, 3)
@@ -200,3 +200,29 @@ elif page == "Predict Success":
     ipo = 1 if st.selectbox("IPO?", ["No", "Yes"]) == "Yes" else 0
     founded_year = st.number_input("Founded Year", 1980, 2025, 2015)
     customer_base = st.number_input("Customer Base (Millions)", 0.0, 1000.0, 1.0)
+
+    # Calculate Startup Age
+    startup_age = 2025 - founded_year
+
+    # Predict button
+    if st.button("🔍 Predict Success"):
+        try:
+            input_data = pd.DataFrame([[
+                funding, employees, revenue, valuation, followers,
+                tech_stack, acquired, ipo, startup_age, customer_base
+            ]], columns=input_columns)
+
+            input_scaled = scaler.transform(input_data)
+            prediction = model.predict(input_scaled)[0]
+            prediction_proba = model.predict_proba(input_scaled)[0]
+
+            pred_label = {0: "Low", 1: "Medium", 2: "High"}.get(prediction, "Unknown")
+            st.success(f"🧠 **Predicted Success Category: {pred_label}**")
+            st.write("📊 **Prediction Probabilities**")
+            st.write({
+                "Low": f"{prediction_proba[0]*100:.2f}%",
+                "Medium": f"{prediction_proba[1]*100:.2f}%",
+                "High": f"{prediction_proba[2]*100:.2f}%"
+            })
+        except Exception as e:
+            st.error(f"⚠️ Prediction failed: {e}")
