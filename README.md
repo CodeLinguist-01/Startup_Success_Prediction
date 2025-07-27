@@ -3,7 +3,12 @@
 A Streamlit-based interactive web application to **predict startup success scores** using a trained ML model, and explore a rich **dashboard** to analyze startup data, funding, geography, and model insights.
 
 ---
+## 🔗 Live Demo
 
+Try the live app here:  
+[Startup_Success_Prediction](https://startupsuccessprediction-kzxgtkznzxrujnzeagzcvw.streamlit.app/)
+
+---
 ## Features
 
 - **Success Score Predictor:**  
