@@ -7,22 +7,28 @@ import pickle
 import joblib
 import os
 
-# Load model and supporting files for prediction
-base_path = os.path.dirname(__file__)
+# ---------------- File Paths ----------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "model.pkl")
+SCALER_PATH = os.path.join(BASE_DIR, "scaler.pkl")
+COLS_PATH = os.path.join(BASE_DIR, "input_columns.pkl")
+CSV_MAIN = os.path.join(BASE_DIR, "startup_predictions-offline.csv")
+CSV_GEO = os.path.join(BASE_DIR, "Final-startup_success_predictions.csv")
+CSV_FEAT = os.path.join(BASE_DIR, "feature_importance.csv")
 
-# Load model
-with open(os.path.join(base_path, 'model.pkl'), 'rb') as f:
-    model = pickle.load(f)
+# ---------------- Model Load ----------------
+try:
+    with open(MODEL_PATH, "rb") as f:
+        model = pickle.load(f)
+    with open(SCALER_PATH, "rb") as f:
+        scaler = pickle.load(f)
+    with open(COLS_PATH, "rb") as f:
+        input_columns = joblib.load(f)
+except FileNotFoundError as e:
+    st.error(f"🚨 Required model/scaler file not found: {e}")
+    st.stop()
 
-# Load scaler
-with open(os.path.join(base_path, 'scaler.pkl'), 'rb') as f:
-    scaler = pickle.load(f)
-
-# Load input columns
-with open(os.path.join(base_path, 'input_columns.pkl'), 'rb') as f:
-    input_columns = joblib.load(f)
-
-# Set page config and sidebar menu
+# ---------------- Page Setup ----------------
 st.set_page_config(page_title="Startup Dashboard & Predictor", layout="wide")
 
 with st.sidebar:
@@ -31,27 +37,26 @@ with st.sidebar:
                        icons=["house", "globe", "bar-chart-line", "rocket"],
                        menu_icon="cast", default_index=0)
 
-# ----------------------------------------
-# Function to load dashboard CSV data
+# ---------------- Data Load ----------------
 @st.cache_data
 def load_data():
     try:
-        df_main = pd.read_csv("startup_predictions-offline.csv")
-        df_geo = pd.read_csv("Final-startup_success_predictions.csv")
-        df_imp = pd.read_csv("feature_importance.csv")
+        df_main = pd.read_csv(CSV_MAIN)
+        df_geo = pd.read_csv(CSV_GEO)
+        df_imp = pd.read_csv(CSV_FEAT)
         return df_main, df_geo, df_imp
     except FileNotFoundError as e:
-        st.error(f"File not found: {e}")
+        st.error(f"🚨 Required CSV file not found: {e}")
         st.stop()
 
-# Function to reverse one-hot encoded columns
+# ---------------- Reverse One-Hot Encoding ----------------
 def reverse_one_hot(df, prefix):
     cols = [col for col in df.columns if col.startswith(prefix + "_")]
     if cols:
         df[prefix] = df[cols].idxmax(axis=1).str.replace(f"{prefix}_", "")
     return df
 
-# ----------------------------------------
+# ---------------- Main Logic ----------------
 if page != "Predict Success":
     df, df_geo, df_imp = load_data()
 
@@ -195,48 +200,3 @@ elif page == "Predict Success":
     ipo = 1 if st.selectbox("IPO?", ["No", "Yes"]) == "Yes" else 0
     founded_year = st.number_input("Founded Year", 1980, 2025, 2015)
     customer_base = st.number_input("Customer Base (Millions)", 0.0, 1000.0, 1.0)
-
-    country = st.selectbox("Country", ['Brazil', 'Canada', 'China', 'France', 'Germany', 'India', 'Japan', 'UK', 'USA'])
-    industry = st.selectbox("Industry", ['E-commerce', 'EdTech', 'Energy', 'FinTech', 'FoodTech', 'Gaming', 'Healthcare', 'Logistics', 'Tech'])
-    funding_stage = st.selectbox("Funding Stage", ['Seed', 'Series A', 'Series B', 'Series C'])
-
-    input_data = dict.fromkeys(input_columns, 0)
-
-    # Assign numerical values
-    input_data['Founded Year'] = founded_year
-    input_data['Total Funding ($M)'] = funding
-    input_data['Number of Employees'] = employees
-    input_data['Annual Revenue ($M)'] = revenue
-    input_data['Valuation ($B)'] = valuation
-    input_data['Acquired?'] = acquired
-    input_data['IPO?'] = ipo
-    input_data['Customer Base (Millions)'] = customer_base
-    input_data['Social Media Followers'] = followers
-    input_data['Tech Stack Count'] = tech_stack
-
-    # One-hot encode categorical features
-    if f'Country_{country}' in input_data:
-        input_data[f'Country_{country}'] = 1
-    if f'Industry_{industry}' in input_data:
-        input_data[f'Industry_{industry}'] = 1
-    if f'Funding Stage_{funding_stage}' in input_data:
-        input_data[f'Funding Stage_{funding_stage}'] = 1
-
-    input_df = pd.DataFrame([input_data])
-    scaled = scaler.transform(input_df)
-
-    if st.button("Predict Success Score"):
-        score = model.predict(scaled)[0]
-        if score < 0 or score > 10:
-            st.error("⚠️ Model output is out of expected range. Please check inputs or retrain the model.")
-        else:
-            st.success(f"🎯 Predicted Success Score: **{score:.2f} / 10**")
-            st.progress(min(score / 10, 1.0))
-            if score <= 3:
-                st.error("❌ This startup has a **high risk** of failure. Consider revisiting the business model or funding.")
-            elif score <= 6:
-                st.warning("⚠️ This startup has a **moderate risk**. It may succeed with proper execution and market timing.")
-            elif score <= 8:
-                st.info("✅ This startup shows **good growth potential**. Strategic scaling and funding could lead to success.")
-            else:
-                st.success("🚀 This startup is **very likely to succeed**! All indicators are strong.")
