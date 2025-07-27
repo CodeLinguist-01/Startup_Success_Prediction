@@ -1,0 +1,28 @@
+# 📦 Python bytecode
+__pycache__/
+*.pyc
+
+# 🧪 Virtual environment folders
+env/
+venv/
+.venv/
+
+# 📂 Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# 🧠 Machine learning models
+*.pkl
+*.joblib
+
+# 📊 Dataset files
+*.csv
+*.xlsx
+*.xls
+
+# 🧾 Log and system files
+*.log
+.DS_Store
+Thumbs.db
+
+# 🧪 Streamlit secrets (if used)
+.streamlit/secrets.toml
