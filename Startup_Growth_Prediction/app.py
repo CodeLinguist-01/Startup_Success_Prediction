@@ -8,11 +8,19 @@ import joblib
 import os
 
 # Load model and supporting files for prediction
-model_path = os.path.join(os.path.dirname(__file__), 'model.pkl')
-with open(model_path, 'rb') as f:
+base_path = os.path.dirname(__file__)
+
+# Load model
+with open(os.path.join(base_path, 'model.pkl'), 'rb') as f:
     model = pickle.load(f)
-scaler = pickle.load(open("scaler.pkl", "rb"))
-input_columns = joblib.load(open("input_columns.pkl", "rb"))
+
+# Load scaler
+with open(os.path.join(base_path, 'scaler.pkl'), 'rb') as f:
+    scaler = pickle.load(f)
+
+# Load input columns
+with open(os.path.join(base_path, 'input_columns.pkl'), 'rb') as f:
+    input_columns = joblib.load(f)
 
 # Set page config and sidebar menu
 st.set_page_config(page_title="Startup Dashboard & Predictor", layout="wide")
